@@ -1,21 +1,171 @@
 <!DOCTYPE html>
+<html lang="en">
 <head>
-  <title>OpenAI Quickstart</title>
-  <link
-    rel="shortcut icon"
-    href="{{ url_for('static', filename='dog.png') }}"
-  />
-  <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}" />
-</head>
+    <title>CENTR X Thermomix Partnership</title>
+    <script src="https://code.jquery.com/jquery-3.6.3.js"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Suisse+Intl:wght@400;700&display=swap">
+    <style>
+        body {
+            font-family: 'Suisse Intl', sans-serif;
+            color: #2E2C2C;
+            background-color: #ECE8E1;
+        }
 
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #2E2C2C;
+            color: #ECE8E1;
+            border-radius: 100px;
+            border: none;
+            margin-bottom: 20px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #464442;
+        }
+
+        button:active {
+            background-color: #1E1C1C;
+        }
+    </style>
+</head>
 <body>
-  <img src="{{ url_for('static', filename='dog.png') }}" class="icon" />
-  <h3>Name my pet</h3>
-  <form action="/" method="post">
-    <input type="text" name="animal" placeholder="Enter an animal" required />
-    <input type="submit" value="Generate names" />
-  </form>
-  {% if result %}
-  <div class="result">{{ result }}</div>
-  {% endif %}
+<h1>Make CENTR meals in your Thermomix!</h1>
+<form id="question-form">
+    <div style="margin-bottom: 20px;">
+        <label for="recipe"><b>CENTR Recipe:</b></label>
+        <div>
+            <input type="text" id="recipe-input" name="recipe" autocomplete="off" style="width: 300px;">
+            <select id="recipe-select" name="recipe" style="display: none;"></select>
+        </div>
+    </div>
+    <div style="margin-bottom: 20px;">
+        <label for="servings"><b>How many servings?</b></label>
+        <select id="servings" name="servings">
+            <option value="2">2</option>
+            <option value="4">4</option>
+            <option value="8">8</option>
+        </select>
+    </div>
+    <button type="submit">Generate Thermomix Recipe</button>
+</form>
+
+
+<div id="thermomix-recipe-section" style="display: none;">
+    <h2></h2>
+    <div class="section">
+        <div class="column" id="ingredients-section">
+            <h3></h3>
+            <ul id="ingredients-list"></ul>
+        </div>
+        <div class="column" id="preparation-section">
+            <h3></h3>
+            <div id="preparation-text"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(function () {
+    var recipes = [];  // Array to store the list of recipes
+
+    // Fetch the recipes list from the file
+    $.ajax({
+        url: "/static/recipes.txt",
+        dataType: "text",
+        success: function (data) {
+            recipes = data.split("\n");
+            populateDropdown(recipes);  // Populate the dropdown with all recipes
+        }
+    });
+
+    // Populate the dropdown with recipes
+    function populateDropdown(recipeList) {
+        var dropdown = $("#recipe-select");
+        dropdown.empty();
+        recipeList.forEach(function (recipe) {
+            dropdown.append("<option value='" + recipe + "'>" + recipe + "</option>");
+        });
+    }
+
+    // Update the dropdown options based on user input
+    function updateDropdown(input) {
+        var filteredRecipes = recipes.filter(function (recipe) {
+            return recipe.toLowerCase().includes(input.toLowerCase());
+        });
+        populateDropdown(filteredRecipes);
+    }
+
+    // Toggle between input field and select dropdown based on user input
+    $("#recipe-input").on("input", function () {
+        var input = $(this).val().trim();
+        if (input === "") {
+            $("#recipe-select").hide();
+        } else {
+            $("#recipe-select").show();
+            updateDropdown(input);
+        }
+    });
+
+    // Set the selected recipe from the dropdown to the input field
+    $("#recipe-select").change(function () {
+        var selectedRecipe = $(this).val();
+        $("#recipe-input").val(selectedRecipe);
+        $(this).hide();
+    });
+
+    $("#question-form").submit(function (event) {
+        event.preventDefault();
+
+        var recipe = $("#recipe-input").val();
+        var servings = $("#servings").val();
+
+        var formData = {
+            recipe: recipe,
+            servings: servings
+        };
+
+        // Disable the button and show "Generating..." animation
+        var generateButton = $("button[type='submit']");
+        generateButton.attr("disabled", true);
+        generateButton.html("Generating");
+
+        var dotCount = 0;
+        var interval = setInterval(function () {
+            dotCount++;
+            var dots = "";
+            for (var i = 0; i < dotCount % 6; i++) {
+                dots += ".";
+            }
+            generateButton.html("Generating" + dots);
+        }, 1000);
+
+        $.ajax({
+            type: "POST",
+            url: "/ask",
+            data: formData,
+            success: function (response) {
+                console.log(response);
+                var ingredients = response.response;
+
+                // Update the Ingredients section
+                var ingredientsList = $("#ingredients-list");
+                ingredientsList.empty();
+                ingredientsList.html(ingredients);
+
+                // Show the Thermomix Recipe section
+                $("#thermomix-recipe-section").show();
+
+                // Clear the animation and enable the button
+                clearInterval(interval);
+                generateButton.html("Generate Thermomix Recipe");
+                generateButton.attr("disabled", false);
+            }
+        });
+    });
+});
+</script>
 </body>
+</html>
